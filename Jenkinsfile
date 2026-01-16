@@ -3,7 +3,9 @@ pipeline {
 
     environment {
         PYTHONUNBUFFERED = '1'
-        DOCKER_IMAGE = "14sakshi/feedback-app:latest"
+        VERSIONED_IMAGE = "14sakshi/feedback-app:1.0.${BUILD_NUMBER}"
+        LATEST_IMAGE = "14sakshi/feedback-app:latest"
+        CONTAINER_NAME = "feedback-app"
     }
 
     options {
@@ -12,12 +14,14 @@ pipeline {
 
     stages {
 
+        // 1️⃣ Checkout code from GitHub
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
+        // 2️⃣ Setup Python & Install Dependencies
         stage('Setup Python & Install Dependencies') {
             steps {
                 sh '''
@@ -29,6 +33,7 @@ pipeline {
             }
         }
 
+        // 3️⃣ Lint your Python code
         stage('Lint') {
             steps {
                 sh '''
@@ -38,6 +43,7 @@ pipeline {
             }
         }
 
+        // 4️⃣ Run Tests (if tests folder exists)
         stage('Run Tests') {
             steps {
                 sh '''
@@ -51,6 +57,7 @@ pipeline {
             }
         }
 
+        // 5️⃣ Build Docker Images (versioned + latest)
         stage('Build Docker Images') {
             steps {
                 sh '''
@@ -59,11 +66,12 @@ pipeline {
             }
         }
 
+        // 6️⃣ Docker Login & Push
         stage('Docker Login & Push') {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: 'dockerhub-creds',
+                        credentialsId: 'dockerhub-creds',   // Set your Docker Hub credentials in Jenkins
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
@@ -77,6 +85,7 @@ pipeline {
             }
         }
 
+        // 7️⃣ Deploy Docker Container
         stage('Deploy Container') {
             steps {
                 sh '''
@@ -88,45 +97,14 @@ pipeline {
                 '''
             }
         }
-
-        stage('Docker Login') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh '''
-                    docker push $DOCKER_IMAGE
-                '''
-            }
-        }
-
-        stage('Deploy Container') {
-            steps {
-                sh '''
-                    docker rm -f $CONTAINER_NAME || true
-                    docker run -d -p 5000:5000 --name $CONTAINER_NAME $DOCKER_IMAGE
-                '''
-            }
-        }
     }
 
     post {
         success {
-            echo "Docker image built successfully"
+            echo "Build, Push & Deploy SUCCESS 🎉 Version: $VERSIONED_IMAGE / Latest: $LATEST_IMAGE"
         }
         failure {
-            echo "Pipeline failed"
+            echo "Pipeline FAILED ❌ Check logs"
         }
     }
 }
