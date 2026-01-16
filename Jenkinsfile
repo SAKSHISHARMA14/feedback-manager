@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         PYTHONUNBUFFERED = '1'
-        DOCKER_IMAGE = "feedback-manager"
-        CONTAINER_NAME = "feedback-app"
+        DOCKER_IMAGE = "14sakshi/feedback-app:latest"
     }
 
     options {
@@ -51,7 +50,6 @@ pipeline {
             }
         }
 
-        // === NEW: Docker stages ===
         stage('Build Docker Image') {
             steps {
                 sh '''
@@ -59,28 +57,14 @@ pipeline {
                 '''
             }
         }
-
-        stage('Run Docker Container') {
-            steps {
-                sh '''
-                    # Remove old container if exists
-                    if [ $(docker ps -a -q -f name=$CONTAINER_NAME) ]; then
-                        docker rm -f $CONTAINER_NAME
-                    fi
-                    # Run container detached
-                    docker run -d -p 5000:5000 --name $CONTAINER_NAME $DOCKER_IMAGE
-                '''
-            }
-        }
     }
 
     post {
-        always {
-            echo "Pipeline finished."
+        success {
+            echo "Docker image built successfully"
         }
         failure {
-            echo "Pipeline failed. Check Jenkins logs."
+            echo "Pipeline failed"
         }
     }
-    
 }
