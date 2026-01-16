@@ -4,7 +4,6 @@ pipeline {
     environment {
         PYTHONUNBUFFERED = '1'
         DOCKER_IMAGE = "14sakshi/feedback-app:latest"
-        CONTAINER_NAME = "feedback-app"
     }
 
     options {
@@ -52,10 +51,40 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Images') {
             steps {
                 sh '''
-                    docker build -t $DOCKER_IMAGE .
+                    docker build -t $VERSIONED_IMAGE -t $LATEST_IMAGE .
+                '''
+            }
+        }
+
+        stage('Docker Login & Push') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push $VERSIONED_IMAGE
+                        docker push $LATEST_IMAGE
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Container') {
+            steps {
+                sh '''
+                    if [ $(docker ps -a -q -f name=$CONTAINER_NAME) ]; then
+                        docker rm -f $CONTAINER_NAME
+                    fi
+
+                    docker run -d -p 5000:5000 --name $CONTAINER_NAME $VERSIONED_IMAGE
                 '''
             }
         }
@@ -94,10 +123,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Build, Push & Deploy successful"
+            echo "Docker image built successfully"
         }
         failure {
-            echo "❌ Pipeline failed – check logs"
+            echo "Pipeline failed"
         }
     }
 }
