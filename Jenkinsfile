@@ -91,7 +91,7 @@ pipeline {
         }
     }
 
-    post {
+    post {de
         success {
             echo "Pipeline finished successfully. Docker image deployed: ${DOCKER_IMAGE_NAME}:latest"
         }
