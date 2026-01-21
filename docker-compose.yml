@@ -1,0 +1,9 @@
+version: "3.8"   # Docker Compose file version
+
+services:
+  feedback-app:
+    image: 14sakshi/feedback-app:latest   # image from Docker Hub
+    container_name: feedback-app          # fixed container name
+    ports:
+      - "5000:5000"                       # host:container
+    restart: always                       # auto-restart on crash
